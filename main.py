@@ -27,7 +27,7 @@ import yt_dlp
 
 
 # Set BOT_TOKEN in Railway -> Variables. Never put the real token in source code.
-TOKEN = os.getenv("7783693610:AAGi_vnGXIotfJf3bOU7VUGN7bBLRHGeCtQ", "").strip()
+TOKEN = os.getenv("BOT_TOKEN", "").strip()
 ADMIN_ID = int(os.getenv("ADMIN_ID", "5436530930"))
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "49"))
 
