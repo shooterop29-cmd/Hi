@@ -1,20 +1,21 @@
+import asyncio
+import logging
 import os
 import re
 import time
-import asyncio
-import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
-    ContextTypes,
-    CommandHandler,
     CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
     MessageHandler,
     filters,
 )
 import yt_dlp
 
-TOKEN = "7783693610:AAGi_vnGXIotfJf3bOU7VUGN7bBLRHGeCtQ"
+# Replace with your actual token or set BOT_TOKEN in Railway's Variables tab
+TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 ADMIN_ID = 5436530930
 
 users = {}
@@ -44,7 +45,7 @@ TEXTS = {
     },
     "hi": {
         "welcome": "👋 MultiSaver Pro Bot में आपका स्वागत है!\n\nकृपया अपनी भाषा चुनें:",
-        "lang_set": "✅ भाषा हिंदी सेट हो गई है। डाउनलोड करने के लिए कोई भी लिंक (YouTube, Instagram, Pinterest आदि) भेजें।",
+        "lang_set": "✅ भाषा हिंदी सेट हो गई है। डाउनलोड करने के लिए कोई भी लिंक भेजें।",
         "invalid": "⚠️ कृपया एक वैध URL लिंक भेजें।",
         "init": "⚡ डाउनलोड शुरू हो रहा है...",
         "uploading": "📤 मीडिया अपलोड हो रहा है...",
@@ -55,7 +56,7 @@ TEXTS = {
         "lang_set": "✅ زبان اردو منتخب ہو گئی ہے۔ ڈاؤنلوڈ کرنے کے لیے کوئی بھی لنک بھیجیں۔",
         "invalid": "⚠️ برائے مہربانی درست لنک فراہم کریں۔",
         "init": "⚡ ڈاؤنلوڈ شروع ہو رہا ہے۔۔۔",
-        "uploading": "📤 میڈیا اپلوڈ ہو रहा ہے۔۔۔",
+        "uploading": "📤 میڈیا اپلوڈ ہو رہا ہے۔۔۔",
         "failed": "❌ ڈاؤنلوڈ ناکام: {}",
     },
     "ar": {
@@ -84,11 +85,11 @@ TEXTS = {
     },
 }
 
-def clean_ansi(text):
+def clean_ansi(text: str) -> str:
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     return ansi_escape.sub("", text)
 
-def get_text(user_id, key):
+def get_text(user_id: int, key: str) -> str:
     lang = users.get(user_id, "en")
     return TEXTS.get(lang, TEXTS["en"]).get(key, TEXTS["en"][key])
 
@@ -112,9 +113,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        get_text(user_id, "welcome"), reply_markup=reply_markup
-    )
+    await update.message.reply_text(get_text(user_id, "welcome"), reply_markup=reply_markup)
 
 async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -164,7 +163,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
     status_msg = await update.message.reply_text(get_text(user_id, "init"))
-
     loop = asyncio.get_running_loop()
     progress_state = {"last_time": 0.0, "last_text": ""}
 
@@ -190,14 +188,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     output_template = f"download_{user_id}_%(id)s.%(ext)s"
     ydl_opts = {
-        "format": "bestvideo+bestaudio/best",
+        # Tries best video+audio merge first (if FFmpeg is present), falls back to standalone best stream or images
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "outtmpl": output_template,
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
         "progress_hooks": [progress_hook],
+        "http_headers": {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept-Language": "en-US,en;q=0.9",
+        },
     }
 
+    file_path = None
     try:
         def fetch_media():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -207,6 +215,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         file_path, info = await loop.run_in_executor(None, fetch_media)
 
+        if not file_path or not os.path.exists(file_path):
+            raise FileNotFoundError("Could not locate the downloaded file.")
+
+        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+        if file_size_mb > 50:
+            await status_msg.edit_text(
+                f"⚠️ File size ({file_size_mb:.1f} MB) exceeds Telegram's 50 MB standard bot limit."
+            )
+            return
+
         await status_msg.edit_text(get_text(user_id, "uploading"))
 
         ext = file_path.split(".")[-1].lower()
@@ -214,17 +232,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if ext in ["jpg", "jpeg", "png", "webp"]:
                 await update.message.reply_photo(photo=media_file)
             elif ext in ["mp4", "mkv", "webm", "mov"]:
-                await update.message.reply_video(video=media_file)
+                await update.message.reply_video(video=media_file, supports_streaming=True)
             else:
                 await update.message.reply_document(document=media_file)
 
         await status_msg.delete()
-        if os.path.exists(file_path):
-            os.remove(file_path)
 
     except Exception as e:
         error_msg = clean_ansi(str(e))
         await status_msg.edit_text(get_text(user_id, "failed").format(error_msg))
+
+    finally:
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
