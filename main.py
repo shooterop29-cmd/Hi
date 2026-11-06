@@ -40,30 +40,33 @@ COOKIE_MAP = {
     "facebook": os.path.join(COOKIES_DIR, "facebook.txt"),
 }
 
-# Raw Cookies Data for Automatic Netscape File Generation
+# Raw Cookies Data (Updated with your newest YouTube cookies)
 COOKIES_RAW = {
     "youtube.txt": [
-        {"domain": ".youtube.com", "name": "VISITOR_PRIVACY_METADATA", "value": "CgJJThIEGgAgZg%3D%3D", "expirationDate": 1809536217},
+        {"domain": ".youtube.com", "name": "VISITOR_PRIVACY_METADATA", "value": "CgJJThIEGgAgZg%3D%3D", "expirationDate": 1809544848},
+        {"domain": ".youtube.com", "name": "ST-3opvp5", "value": "session_logininfo=AFmmF2swRAIgcSf3PuEA-P2yUiFL2W-ryZc9LkxzGNZtbYa0v9nipFwCIFpLKA1CYkyvYgIaNGCjethamNZ1-6nmfD89NdkVxYTb%3AQUQ3MjNmeHZUTWtPSGpkZGotMUxINkxmVU52RGd3MU5LRFZzM2w4TV9uMWlpSy1XSjc4c0RhSEdjNEo2WU82Wl9Lc2NzRWZUMks0S2lsTUVLMm5YRzlFZmRIQVk0TFNueVFuaXVlVHJXbUM1VkpteVhhUU5rNkdlaEdVSUJRSFZEX0I0X2g0NEhFQnpKTkM1eVNYUWpzVDNMT3dlUWc0T2p3", "expirationDate": 1793992856},
+        {"domain": ".youtube.com", "name": "_gcl_au", "value": "1.1.1034791907.1793984214", "expirationDate": 1801760214},
+        {"domain": ".youtube.com", "name": "ST-xuwub9", "value": "session_logininfo=AFmmF2swRAIgcSf3PuEA-P2yUiFL2W-ryZc9LkxzGNZtbYa0v9nipFwCIFpLKA1CYkyvYgIaNGCjethamNZ1-6nmfD89NdkVxYTb%3AQUQ3MjNmeHZUTWtPSGpkZGotMUxINkxmVU52RGd3MU5LRFZzM2w4TV9uMWlpSy1XSjc4c0RhSEdjNEo2WU82Wl9Lc2NzRWZUMks0S2lsTUVLMm5YRzlFZmRIQVk0TFNueVFuaXVlVHJXbUM1VkpteVhhUU5rNkdlaEdVSUJRSFZEX0I0X2g0NEhFQnpKTkM1eVNYUWpzVDNMT3dlUWc0T2p3", "expirationDate": 1793992857},
         {"domain": ".youtube.com", "name": "__Secure-3PSID", "value": "g.a000Egk46zztKjTe49zTLwM7182DKZeZT-GmgQDeitJRSmhlF3KBRLMW6r1psbtR0RFhUTjxEwACgYKATQSARMSFQHGX2Miz09XsRcpiXfhf88enttNJhoVAUF8yKrSFtRuM054L2NG4gjZuM7J0076", "expirationDate": 1828543256},
-        {"domain": ".youtube.com", "name": "GPS", "value": "1", "expirationDate": 1793985000},
-        {"domain": ".youtube.com", "name": "SIDCC", "value": "APD_SKHQiveoj7pbY1B-e3fLv0Dt43v5m1gJQP5Nc8W4omDpRmdYb7qLDhd0QAqUPMDCYHS_", "expirationDate": 1825520220},
-        {"domain": ".youtube.com", "name": "YSC", "value": "9Dqu379GhSk", "expirationDate": 0},
+        {"domain": ".youtube.com", "name": "SIDCC", "value": "APD_SKHtngMFTEAlc40nNx9TWnqr7_gApgRCw-kOSvhMEkidvgHFAMg_p1mS_n3n-xf7yRu9", "expirationDate": 1825528854},
+        {"domain": ".youtube.com", "name": "YSC", "value": "rMUsnLxLt0s", "expirationDate": 0},
         {"domain": ".youtube.com", "name": "SID", "value": "g.a000Egk46zztKjTe49zTLwM7182DKZeZT-GmgQDeitJRSmhlF3KBf-7ca59N8sEC7KgYxm-L9gACgYKAX0SARMSFQHGX2MihL_pftsEDegR2r9hGEJlExoVAUF8yKoj64dwLc4Vir_NJwXkF-gd0076", "expirationDate": 1828543256},
-        {"domain": ".youtube.com", "name": "__Secure-1PSIDTS", "value": "sidts-CjQBnJZzanSlWaSeWiRlvUygojlpb5hR7zxQhqdrpyt2CerSa2RcRd9rM2pr3dXSlEWaWMEsEAA", "expirationDate": 1825519256},
+        {"domain": ".youtube.com", "name": "__Secure-1PSIDTS", "value": "sidts-CjQBnJZzandzaY4Sfx7frBEPymz8B-cp9thFXpAQ0IBa9RcN2lB9M1JtqwRLXoiDdPovCh5oEAA", "expirationDate": 1825528854},
         {"domain": ".youtube.com", "name": "SAPISID", "value": "5mxiUK3s1akuiDBh/AOAh3IoJqQTknptBb", "expirationDate": 1828543256},
-        {"domain": ".youtube.com", "name": "__Secure-1PSIDCC", "value": "APD_SKFEIGVr3xwMESCOTvBPUq46bsQPRgt3eM0PCnP_Eu9TL3oLAPFYsDwPQ-XBBPaVtXbG", "expirationDate": 1825520220},
+        {"domain": ".youtube.com", "name": "__Secure-1PSIDCC", "value": "APD_SKG6OdzYY1Yaf9bknegYQ5Kj6k_WcX45iKtRawl2iI2EhHJaHzS_hipLS2bultlD8t_O", "expirationDate": 1825528854},
         {"domain": ".youtube.com", "name": "SSID", "value": "ATHa9Q0uOeK99pyUj", "expirationDate": 1828543256},
+        {"domain": ".youtube.com", "name": "ST-tladcw", "value": "session_logininfo=AFmmF2swRAIgcSf3PuEA-P2yUiFL2W-ryZc9LkxzGNZtbYa0v9nipFwCIFpLKA1CYkyvYgIaNGCjethamNZ1-6nmfD89NdkVxYTb%3AQUQ3MjNmeHZUTWtPSGpkZGotMUxINkxmVU52RGd3MU5LRFZzM2w4TV9uMWlpSy1XSjc4c0RhSEdjNEo2WU82Wl9Lc2NzRWZUMks0S2lsTUVLMm5YRzlFZmRIQVk0TFNueVFuaXVlVHJXbUM1VkpteVhhUU5rNkdlaEdVSUJRSFZEX0I0X2g0NEhFQnpKTkM1eVNYUWpzVDNMT3dlUWc0T2p3", "expirationDate": 1793992855},
         {"domain": ".youtube.com", "name": "__Secure-1PAPISID", "value": "5mxiUK3s1akuiDBh/AOAh3IoJqQTknptBb", "expirationDate": 1828543256},
         {"domain": ".youtube.com", "name": "__Secure-1PSID", "value": "g.a000Egk46zztKjTe49zTLwM7182DKZeZT-GmgQDeitJRSmhlF3KBzglZnqbkQLaX7qDE-zgjBQACgYKAecSARMSFQHGX2MiUjEEJYFr57mGBFTCNWQePBoVAUF8yKpdzfu5n0_k6XOc1F_tgpOp0076", "expirationDate": 1828543256},
         {"domain": ".youtube.com", "name": "__Secure-3PAPISID", "value": "5mxiUK3s1akuiDBh/AOAh3IoJqQTknptBb", "expirationDate": 1828543256},
-        {"domain": ".youtube.com", "name": "__Secure-3PSIDCC", "value": "APD_SKEEAwjuEQjmBYHp6LJp6nX3PZp7jXGjUC2-4PRibUaBz4ZzB0vpnCaKHQdD7fckLSOR", "expirationDate": 1825520220},
-        {"domain": ".youtube.com", "name": "__Secure-3PSIDTS", "value": "sidts-CjQBnJZzanSlWaSeWiRlvUygojlpb5hR7zxQhqdrpyt2CerSa2RcRd9rM2pr3dXSlEWaWMEsEAA", "expirationDate": 1825519256},
+        {"domain": ".youtube.com", "name": "__Secure-3PSIDCC", "value": "APD_SKGAQElwDW-Gr-bs2VDoV9NxDzcqyAExVwTa1XbAfppX3icq8QiAPxNyhuZLzJJg0Vvg", "expirationDate": 1825528854},
+        {"domain": ".youtube.com", "name": "__Secure-3PSIDTS", "value": "sidts-CjQBnJZzandzaY4Sfx7frBEPymz8B-cp9thFXpAQ0IBa9RcN2lB9M1JtqwRLXoiDdPovCh5oEAA", "expirationDate": 1825528854},
         {"domain": ".youtube.com", "name": "__Secure-YNID", "value": "CtoBCAUSjAEBDB6PDMggTN-P0Yv9rAhHiq6eE54X5bBy-6LBQxXuLGiF2dXpV-BdlQwk5AoH4Rq8zAu9sB0vFk1Br-eKdwImEhWzbB1XgAm-ZHNfQyTHmEzjN5eZdlCoo_va-e7weI_uAcBrFFO4gRjCjK9kuSTpL6mBstS-l3FHz6DYDZf_0yWJVQ1EAqcpEO49aygFMkUBHFj1au9F1DVsCNdctutOes_5hYcUPtHkifxlt92vd7Yk6Ztl4kJpSRaXUPvjnl48Zu0qrVOGUpm3IsnRGSlalhOFAws", "expirationDate": 1809535200},
         {"domain": ".youtube.com", "name": "APISID", "value": "69FXIJOKsSb7Ay74/Avzrez4hKEVOXM6Ps", "expirationDate": 1828543256},
         {"domain": ".youtube.com", "name": "HSID", "value": "AxyD5vJ-_0-hmSJZK", "expirationDate": 1828543256},
         {"domain": ".youtube.com", "name": "LOGIN_INFO", "value": "AFmmF2swRAIgcSf3PuEA-P2yUiFL2W-ryZc9LkxzGNZtbYa0v9nipFwCIFpLKA1CYkyvYgIaNGCjethamNZ1-6nmfD89NdkVxYTb:QUQ3MjNmeHZUTWtPSGpkZGotMUxINkxmVU52RGd3MU5LRFZzM2w4TV9uMWlpSy1XSjc4c0RhSEdjNEo2WU82Wl9Lc2NzRWZUMks0S2lsTUVLMm5YRzlFZmRIQVk0TFNueVFuaXVlVHJXbUM1VkpteVhhUU5rNkdlaEdVSUJRSFZEX0I0X2g0NEhFQnpKTkM1eVNYUWpzVDNMT3dlUWc0T2p3", "expirationDate": 1828543257},
-        {"domain": ".youtube.com", "name": "PREF", "value": "f6=40000000&tz=Asia.Kolkata&f4=4000000", "expirationDate": 1828543550},
-        {"domain": ".youtube.com", "name": "VISITOR_INFO1_LIVE", "value": "cpgrYatvHuo", "expirationDate": 1809536217}
+        {"domain": ".youtube.com", "name": "PREF", "value": "f6=40000000&tz=Asia.Kolkata&f4=4000000", "expirationDate": 1828552851},
+        {"domain": ".youtube.com", "name": "VISITOR_INFO1_LIVE", "value": "cpgrYatvHuo", "expirationDate": 1809544848}
     ],
     "instagram.txt": [
         {"domain": ".instagram.com", "name": "ps_n", "value": "1", "expirationDate": 1828543792},
@@ -130,7 +133,6 @@ TEXTS = {
         "lang_set": "✅ Language set to English. Send any supported link (YouTube, Instagram, Facebook, X, Pinterest) to download.",
         "invalid": "⚠️ Please provide a valid URL link.",
         "init": "⚡ Initializing download...",
-        "uploading": "📤 Uploading media...",
         "failed": "❌ Download failed: {}",
         "file_too_large": "⚠️ File exceeds the 49MB Telegram limit.",
     },
@@ -139,7 +141,6 @@ TEXTS = {
         "lang_set": "✅ भाषा हिंदी सेट हो गई है। डाउनलोड करने के लिए कोई भी लिंक (YouTube, Instagram, Facebook, X, Pinterest आदि) भेजें।",
         "invalid": "⚠️ कृपया एक वैध URL लिंक भेजें।",
         "init": "⚡ डाउनलोड शुरू हो रहा है...",
-        "uploading": "📤 मीडिया अपलोड हो रहा है...",
         "failed": "❌ डाउनलोड विफल: {}",
         "file_too_large": "⚠️ फ़ाइल 49MB से अधिक है, जो टेलीग्राम की सीमा से बाहर है।",
     },
@@ -148,7 +149,6 @@ TEXTS = {
         "lang_set": "✅ زبان اردو منتخب ہو گئی ہے۔ ڈاؤنلوڈ کرنے کے لیے کوئی بھی لنک بھیجیں۔",
         "invalid": "⚠️ برائے مہربانی درست لنک فراہم کریں۔",
         "init": "⚡ ڈاؤنلوڈ شروع ہو رہا ہے۔۔۔",
-        "uploading": "📤 میڈیا اپلوڈ ہو رہا ہے۔۔۔",
         "failed": "❌ ڈاؤنلوڈ ناکام: {}",
         "file_too_large": "⚠️ فائل 49MB کی حد سے بڑی ہے۔",
     },
@@ -157,7 +157,6 @@ TEXTS = {
         "lang_set": "✅ تم ضبط اللغة على العربية. أرسل أي رابط للتنزيل.",
         "invalid": "⚠️ يرجى إرسال رابط صالح.",
         "init": "⚡ جاري بدء التنزيل...",
-        "uploading": "📤 جاري رفع الوسائط...",
         "failed": "❌ فشل التنزيل: {}",
         "file_too_large": "⚠️ حجم الملف يتجاوز 49 ميجابايت.",
     },
@@ -166,7 +165,6 @@ TEXTS = {
         "lang_set": "✅ Idioma configurado en Español. Envía cualquier enlace para descargar.",
         "invalid": "⚠️ Por favor, introduce un enlace válido.",
         "init": "⚡ Iniciando descarga...",
-        "uploading": "📤 Subiendo archivo multimedia...",
         "failed": "❌ Descarga fallida: {}",
         "file_too_large": "⚠️ El archivo supera el límite de 49MB.",
     },
@@ -175,7 +173,6 @@ TEXTS = {
         "lang_set": "✅ Язык установлен на Русский. Отправьте ссылку для скачивания.",
         "invalid": "⚠️ Пожалуйста, укажите рабочую ссылку.",
         "init": "⚡ Запуск загрузки...",
-        "uploading": "📤 Отправка медиа...",
         "failed": "❌ Ошибка загрузки: {}",
         "file_too_large": "⚠️ Размер файла превышает лимит 49 МБ.",
     },
@@ -245,15 +242,26 @@ def download_with_gallery_dl(url: str, dest_dir: str, cookie_file: str = None) -
     return []
 
 def download_with_ytdlp(url: str, dest_dir: str, cookie_file: str = None, progress_hook=None) -> list[str]:
-    """Video/audio ke liye yt-dlp run karta hai (format error fixed)"""
+    """YouTube aur videos ke liye optimized yt-dlp call"""
     output_template = os.path.join(dest_dir, "%(id)s.%(ext)s")
+    
     ydl_opts = {
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best",
+        # Pehle single best file under 49M, fir video+audio under 49M
+        "format": "best[filesize<=49M]/bestvideo[filesize<=40M]+bestaudio/best[ext=mp4]/best",
         "outtmpl": output_template,
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
         "max_filesize": MAX_FILE_SIZE,
+        # VPS/Railway datacenter IP block bypass karne ke liye Android/iOS clients
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "ios", "web"]
+            }
+        },
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+        }
     }
     if progress_hook:
         ydl_opts["progress_hooks"] = [progress_hook]
@@ -273,16 +281,37 @@ def route_and_download(url: str, dest_dir: str, progress_hook=None) -> list[str]
     domain = urlparse(url).netloc.lower()
     cookie_file = get_cookie_for_url(url)
 
-    # 1. Instagram / Pinterest / Twitter (X) -> Pehle gallery-dl se check karo
+    # 1. Instagram / Pinterest / Twitter (X) -> Pehle gallery-dl
     if any(p in domain for p in ["instagram.com", "pinterest.com", "pin.it", "twitter.com", "x.com"]):
         files = download_with_gallery_dl(url, dest_dir, cookie_file)
         if files:
             return files
-        # Agar image nahi hai (reels/video), tab yt-dlp fallback
         return download_with_ytdlp(url, dest_dir, cookie_file, progress_hook)
 
-    # 2. YouTube aur baaki sites -> Seedhe yt-dlp
+    # 2. YouTube aur baaki sites -> yt-dlp
     return download_with_ytdlp(url, dest_dir, cookie_file, progress_hook)
+
+async def animate_upload(status_msg, stop_event: asyncio.Event):
+    """Uploading ke dauran lamba aur interactive progress animation chalata hai"""
+    frames = [
+        "📤 **Uploading to Telegram**\n[▰▱▱▱▱▱▱▱▱▱] 10% • Packaging payload...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▱▱▱▱▱▱▱] 30% • Sending media chunks...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▱▱▱▱▱] 55% • Transferring buffers...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▰▰▱▱▱] 75% • Syncing cloud stream...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▰▰▰▰▱] 90% • Almost ready...",
+        "🚀 **Rendering on Telegram**\n[▰▰▰▰▰▰▰▰▰▰] 99% • Finalizing...",
+    ]
+    idx = 0
+    while not stop_event.is_set():
+        try:
+            await status_msg.edit_text(frames[idx % len(frames)], parse_mode="Markdown")
+        except TelegramError:
+            pass
+        idx += 1
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=1.8)
+        except asyncio.TimeoutError:
+            pass
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -365,7 +394,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     def progress_hook(d):
         if d.get("status") == "downloading":
             now = time.time()
-            if now - progress_state["last_time"] >= 4.0:
+            if now - progress_state["last_time"] >= 3.0:
                 percent = clean_ansi(d.get("_percent_str", "0%")).strip()
                 speed = clean_ansi(d.get("_speed_str", "N/A")).strip()
                 eta = clean_ansi(d.get("_eta_str", "N/A")).strip()
@@ -404,7 +433,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await status_msg.edit_text(get_text(user_id, "file_too_large"))
             return
 
-        await status_msg.edit_text(get_text(user_id, "uploading"))
+        # Extended Uploading Animation Start
+        stop_upload_anim = asyncio.Event()
+        anim_task = asyncio.create_task(animate_upload(status_msg, stop_upload_anim))
 
         media_group = []
         for file_path in valid_files:
@@ -416,23 +447,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 with open(file_path, "rb") as f:
                     media_group.append(InputMediaVideo(media=f.read()))
 
-        if len(media_group) > 1:
-            for i in range(0, len(media_group), 10):
-                await update.message.reply_media_group(media=media_group[i:i + 10])
-        elif len(media_group) == 1:
-            file_path = valid_files[0]
-            ext = file_path.split(".")[-1].lower()
-            with open(file_path, "rb") as media_file:
-                if ext in ["jpg", "jpeg", "png", "webp"]:
-                    await update.message.reply_photo(photo=media_file)
-                elif ext in ["mp4", "mkv", "webm", "mov"]:
-                    await update.message.reply_video(video=media_file, supports_streaming=True)
-                else:
-                    await update.message.reply_document(document=media_file)
-        else:
-            for file_path in valid_files:
+        try:
+            if len(media_group) > 1:
+                for i in range(0, len(media_group), 10):
+                    await update.message.reply_media_group(media=media_group[i:i + 10])
+            elif len(media_group) == 1:
+                file_path = valid_files[0]
+                ext = file_path.split(".")[-1].lower()
                 with open(file_path, "rb") as media_file:
-                    await update.message.reply_document(document=media_file)
+                    if ext in ["jpg", "jpeg", "png", "webp"]:
+                        await update.message.reply_photo(photo=media_file)
+                    elif ext in ["mp4", "mkv", "webm", "mov"]:
+                        await update.message.reply_video(video=media_file, supports_streaming=True)
+                    else:
+                        await update.message.reply_document(document=media_file)
+            else:
+                for file_path in valid_files:
+                    with open(file_path, "rb") as media_file:
+                        await update.message.reply_document(document=media_file)
+        finally:
+            stop_upload_anim.set()
+            await anim_task
 
         await status_msg.delete()
 
