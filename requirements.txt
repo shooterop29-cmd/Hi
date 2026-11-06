@@ -1,2 +1,2 @@
-python-telegram-bot>=21.0
-git+https://github.com/yt-dlp/yt-dlp.git
+python-telegram-bot==21.10
+yt-dlp[default]
