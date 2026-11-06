@@ -245,14 +245,15 @@ def download_with_gallery_dl(url: str, dest_dir: str, cookie_file: str = None) -
     return []
 
 def download_with_ytdlp(url: str, dest_dir: str, cookie_file: str = None, progress_hook=None) -> list[str]:
-    """Video/audio ke liye yt-dlp run karta hai"""
+    """Video/audio ke liye yt-dlp run karta hai (format error fixed)"""
     output_template = os.path.join(dest_dir, "%(id)s.%(ext)s")
     ydl_opts = {
-        "format": "bestvideo[filesize<49M]+bestaudio/best[filesize<49M]/best",
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best",
         "outtmpl": output_template,
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
+        "max_filesize": MAX_FILE_SIZE,
     }
     if progress_hook:
         ydl_opts["progress_hooks"] = [progress_hook]
