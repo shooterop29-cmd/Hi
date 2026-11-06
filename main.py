@@ -40,7 +40,7 @@ COOKIE_MAP = {
     "facebook": os.path.join(COOKIES_DIR, "facebook.txt"),
 }
 
-# Raw Cookies Data (Updated with your newest YouTube cookies)
+# Raw Cookies Data (Updated with your newest YouTube cookies, keeping others unchanged)
 COOKIES_RAW = {
     "youtube.txt": [
         {"domain": ".youtube.com", "name": "VISITOR_PRIVACY_METADATA", "value": "CgJJThIEGgAgZg%3D%3D", "expirationDate": 1809544848},
@@ -148,7 +148,7 @@ TEXTS = {
         "welcome": "👋 MultiSaver Pro Bot میں خوش آمدید!\n\nبراہ کرم اپنی زبان منتخب کریں:",
         "lang_set": "✅ زبان اردو منتخب ہو گئی ہے۔ ڈاؤنلوڈ کرنے کے لیے کوئی بھی لنک بھیجیں۔",
         "invalid": "⚠️ برائے مہربانی درست لنک فراہم کریں۔",
-        "init": "⚡ ڈاؤنلوڈ شروع ہو رہا ہے۔۔۔",
+        "init": "⚡ ڈاؤنلوڈ شروع ہو रहा ہے۔۔۔",
         "failed": "❌ ڈاؤنلوڈ ناکام: {}",
         "file_too_large": "⚠️ فائل 49MB کی حد سے بڑی ہے۔",
     },
@@ -242,34 +242,44 @@ def download_with_gallery_dl(url: str, dest_dir: str, cookie_file: str = None) -
     return []
 
 def download_with_ytdlp(url: str, dest_dir: str, cookie_file: str = None, progress_hook=None) -> list[str]:
-    """YouTube aur videos ke liye optimized yt-dlp call"""
+    """YouTube aur videos ke liye resilient 2-stage yt-dlp downloader"""
     output_template = os.path.join(dest_dir, "%(id)s.%(ext)s")
     
-    ydl_opts = {
-        # Pehle single best file under 49M, fir video+audio under 49M
-        "format": "best[filesize<=49M]/bestvideo[filesize<=40M]+bestaudio/best[ext=mp4]/best",
+    # 1. Primary Attempt: Prefers 720p/MP4 stream
+    ydl_opts_primary = {
+        "format": "b[height<=720]/bv*[height<=720]+ba/b/best",
         "outtmpl": output_template,
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
-        "max_filesize": MAX_FILE_SIZE,
-        # VPS/Railway datacenter IP block bypass karne ke liye Android/iOS clients
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android", "ios", "web"]
-            }
-        },
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-        }
+        "format_sort": ["res:720", "ext:mp4:m4a"],
     }
     if progress_hook:
-        ydl_opts["progress_hooks"] = [progress_hook]
+        ydl_opts_primary["progress_hooks"] = [progress_hook]
     if cookie_file and os.path.exists(cookie_file):
-        ydl_opts["cookiefile"] = cookie_file
+        ydl_opts_primary["cookiefile"] = cookie_file
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.extract_info(url, download=True)
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts_primary) as ydl:
+            ydl.extract_info(url, download=True)
+    except Exception as e:
+        # 2. Resilient Fallback: If format/cookie failed, retry with android client & generic format
+        ydl_opts_fallback = {
+            "format": "b/best",
+            "outtmpl": output_template,
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "web"]
+                }
+            }
+        }
+        if progress_hook:
+            ydl_opts_fallback["progress_hooks"] = [progress_hook]
+        with yt_dlp.YoutubeDL(ydl_opts_fallback) as ydl:
+            ydl.extract_info(url, download=True)
 
     downloaded = []
     for root, _, files in os.walk(dest_dir):
@@ -292,14 +302,19 @@ def route_and_download(url: str, dest_dir: str, progress_hook=None) -> list[str]
     return download_with_ytdlp(url, dest_dir, cookie_file, progress_hook)
 
 async def animate_upload(status_msg, stop_event: asyncio.Event):
-    """Uploading ke dauran lamba aur interactive progress animation chalata hai"""
+    """Uploading ke dauran lamba, continuous aur dynamic progress animation chalata hai"""
     frames = [
-        "📤 **Uploading to Telegram**\n[▰▱▱▱▱▱▱▱▱▱] 10% • Packaging payload...",
-        "📤 **Uploading to Telegram**\n[▰▰▰▱▱▱▱▱▱▱] 30% • Sending media chunks...",
-        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▱▱▱▱▱] 55% • Transferring buffers...",
-        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▰▰▱▱▱] 75% • Syncing cloud stream...",
-        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▰▰▰▰▱] 90% • Almost ready...",
-        "🚀 **Rendering on Telegram**\n[▰▰▰▰▰▰▰▰▰▰] 99% • Finalizing...",
+        "📤 **Uploading to Telegram**\n[▱▱▱▱▱▱▱▱▱▱] 5% • Initializing buffers...",
+        "📤 **Uploading to Telegram**\n[▰▱▱▱▱▱▱▱▱▱] 15% • Packaging media stream...",
+        "📤 **Uploading to Telegram**\n[▰▰▱▱▱▱▱▱▱▱] 25% • Encrypting file chunks...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▱▱▱▱▱▱▱] 38% • Routing to Telegram CDN...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▰▱▱▱▱▱▱] 48% • Transferring video packets...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▱▱▱▱▱] 60% • Syncing audio-video buffers...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▰▱▱▱▱] 72% • Optimizing transfer bitrate...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▰▰▱▱▱] 82% • Cloud checksum validation...",
+        "📤 **Uploading to Telegram**\n[▰▰▰▰▰▰▰▰▱▱] 91% • Verifying Telegram file hash...",
+        "🚀 **Uploading to Telegram**\n[▰▰▰▰▰▰▰▰▰▱] 96% • Generating thumbnail preview...",
+        "🚀 **Finalizing Delivery**\n[▰▰▰▰▰▰▰▰▰▰] 99% • Rendering media in chat...",
     ]
     idx = 0
     while not stop_event.is_set():
@@ -309,7 +324,7 @@ async def animate_upload(status_msg, stop_event: asyncio.Event):
             pass
         idx += 1
         try:
-            await asyncio.wait_for(stop_event.wait(), timeout=1.8)
+            await asyncio.wait_for(stop_event.wait(), timeout=1.3)
         except asyncio.TimeoutError:
             pass
 
@@ -451,7 +466,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if len(media_group) > 1:
                 for i in range(0, len(media_group), 10):
                     await update.message.reply_media_group(media=media_group[i:i + 10])
-            elif len(media_group) == 1:
+        except TelegramError:
+            # Media group failure fallback: upload individually
+            media_group = []
+
+        try:
+            if len(media_group) == 1:
                 file_path = valid_files[0]
                 ext = file_path.split(".")[-1].lower()
                 with open(file_path, "rb") as media_file:
@@ -461,7 +481,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await update.message.reply_video(video=media_file, supports_streaming=True)
                     else:
                         await update.message.reply_document(document=media_file)
-            else:
+            elif len(media_group) == 0 and valid_files:
                 for file_path in valid_files:
                     with open(file_path, "rb") as media_file:
                         await update.message.reply_document(document=media_file)
