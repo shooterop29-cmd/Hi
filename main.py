@@ -13,19 +13,20 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from telegram.error import TelegramError
 import yt_dlp
 
-TOKEN = "7783693610:AAGi_vnGXIotfJf3bOU7VUGN7bBLRHGeCtQ"
-ADMIN_ID = 5436530930
+TOKEN = os.getenv("BOT_TOKEN", "7783693610:AAGi_vnGXIotfJf3bOU7VUGN7bBLRHGeCtQ")
+ADMIN_ID = int(os.getenv("ADMIN_ID", 5436530930))
+MAX_FILE_SIZE = 49 * 1024 * 1024  # 49 MB limit for non-premium bots
 
-# कुकी फाइल्स की डायरेक्टरी और मैपिंग
 COOKIES_DIR = "cookies"
 COOKIE_MAP = {
     "youtube": os.path.join(COOKIES_DIR, "youtube.txt"),
     "instagram": os.path.join(COOKIES_DIR, "instagram.txt"),
-    "twitter": os.path.join(COOKIES_DIR, "twitter.txt"),      # X और Twitter दोनों के लिए
+    "twitter": os.path.join(COOKIES_DIR, "twitter.txt"),
     "pinterest": os.path.join(COOKIES_DIR, "pinterest.txt"),
-    "facebook": os.path.join(COOKIES_DIR, "facebook.txt"),    # Optional (अगर कभी मिले तो)
+    "facebook": os.path.join(COOKIES_DIR, "facebook.txt"),
 }
 
 users = {}
@@ -52,6 +53,7 @@ TEXTS = {
         "init": "⚡ Initializing download...",
         "uploading": "📤 Uploading media...",
         "failed": "❌ Download failed: {}",
+        "file_too_large": "⚠️ File exceeds the 49MB Telegram limit.",
     },
     "hi": {
         "welcome": "👋 MultiSaver Pro Bot में आपका स्वागत है!\n\nकृपया अपनी भाषा चुनें:",
@@ -60,14 +62,16 @@ TEXTS = {
         "init": "⚡ डाउनलोड शुरू हो रहा है...",
         "uploading": "📤 मीडिया अपलोड हो रहा है...",
         "failed": "❌ डाउनलोड विफल: {}",
+        "file_too_large": "⚠️ फ़ाइल 49MB से अधिक है, जो टेलीग्राम की सीमा से बाहर है।",
     },
     "ur": {
         "welcome": "👋 MultiSaver Pro Bot میں خوش آمدید!\n\nبراہ کرم اپنی زبان منتخب کریں:",
         "lang_set": "✅ زبان اردو منتخب ہو گئی ہے۔ ڈاؤنلوڈ کرنے کے لیے کوئی بھی لنک بھیجیں۔",
         "invalid": "⚠️ برائے مہربانی درست لنک فراہم کریں۔",
         "init": "⚡ ڈاؤنلوڈ شروع ہو رہا ہے۔۔۔",
-        "uploading": "📤 میڈیا اپلوڈ ہو रहा ہے۔۔۔",
+        "uploading": "📤 میڈیا اپلوڈ ہو رہا ہے۔۔۔",
         "failed": "❌ ڈاؤنلوڈ ناکام: {}",
+        "file_too_large": "⚠️ فائل 49MB کی حد سے بڑی ہے۔",
     },
     "ar": {
         "welcome": "👋 مرحبًا بك في MultiSaver Pro Bot!\n\nيرجى اختيار لغتك:",
@@ -76,6 +80,7 @@ TEXTS = {
         "init": "⚡ جاري بدء التنزيل...",
         "uploading": "📤 جاري رفع الوسائط...",
         "failed": "❌ فشل التنزيل: {}",
+        "file_too_large": "⚠️ حجم الملف يتجاوز 49 ميجابايت.",
     },
     "es": {
         "welcome": "👋 ¡Bienvenido a MultiSaver Pro Bot!\n\nPor favor seleccione su idioma:",
@@ -84,6 +89,7 @@ TEXTS = {
         "init": "⚡ Iniciando descarga...",
         "uploading": "📤 Subiendo archivo multimedia...",
         "failed": "❌ Descarga fallida: {}",
+        "file_too_large": "⚠️ El archivo supera el límite de 49MB.",
     },
     "ru": {
         "welcome": "👋 Добро пожаловать в MultiSaver Pro Bot!\n\nПожалуйста, выберите язык:",
@@ -92,24 +98,20 @@ TEXTS = {
         "init": "⚡ Запуск загрузки...",
         "uploading": "📤 Отправка медиа...",
         "failed": "❌ Ошибка загрузки: {}",
+        "file_too_large": "⚠️ Размер файла превышает лимит 49 МБ.",
     },
 }
 
-def clean_ansi(text):
+def clean_ansi(text: str) -> str:
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     return ansi_escape.sub("", text)
 
-def get_text(user_id, key):
+def get_text(user_id: int, key: str) -> str:
     lang = users.get(user_id, "en")
     return TEXTS.get(lang, TEXTS["en"]).get(key, TEXTS["en"][key])
 
 def get_cookie_for_url(url: str):
-    """
-    URL के डोमेन के आधार पर सही कुकी फ़ाइल रिटर्न करता है।
-    अगर Facebook है या कुकी फ़ाइल मौजूद नहीं है, तो None रिटर्न करता है।
-    """
     domain = urlparse(url).netloc.lower()
-
     target_key = None
     if "youtube.com" in domain or "youtu.be" in domain:
         target_key = "youtube"
@@ -126,7 +128,6 @@ def get_cookie_for_url(url: str):
         cookie_path = COOKIE_MAP[target_key]
         if os.path.exists(cookie_path):
             return cookie_path
-
     return None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -181,9 +182,16 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await context.bot.send_message(chat_id=uid, text=message_text)
             sent_count += 1
+            await asyncio.sleep(0.05)
         except Exception:
             pass
     await update.message.reply_text(f"✅ Broadcast sent to {sent_count} users.")
+
+def sync_download(url: str, ydl_opts: dict):
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        filename = ydl.prepare_filename(info)
+        return filename, info
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
@@ -208,7 +216,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     def progress_hook(d):
         if d.get("status") == "downloading":
             now = time.time()
-            if now - progress_state["last_time"] >= 2.0:
+            if now - progress_state["last_time"] >= 4.0:
                 percent = clean_ansi(d.get("_percent_str", "0%")).strip()
                 speed = clean_ansi(d.get("_speed_str", "N/A")).strip()
                 eta = clean_ansi(d.get("_eta_str", "N/A")).strip()
@@ -221,17 +229,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if msg != progress_state["last_text"]:
                     progress_state["last_text"] = msg
                     progress_state["last_time"] = now
-                    asyncio.run_coroutine_threadsafe(
-                        status_msg.edit_text(msg, parse_mode="Markdown"), loop
-                    )
 
-    output_template = f"download_{user_id}_%(id)s.%(ext)s"
-    
-    # URL के हिसाब से कुकी ढूँढें
+                    async def safe_edit():
+                        try:
+                            await status_msg.edit_text(msg, parse_mode="Markdown")
+                        except TelegramError:
+                            pass
+
+                    asyncio.run_coroutine_threadsafe(safe_edit(), loop)
+
+    output_template = f"download_{user_id}_{int(time.time())}_%(id)s.%(ext)s"
     cookie_file = get_cookie_for_url(text)
 
     ydl_opts = {
-        "format": "bestvideo+bestaudio/best",
+        "format": "bestvideo[filesize<49M]+bestaudio/best[filesize<49M]/best",
         "outtmpl": output_template,
         "quiet": True,
         "no_warnings": True,
@@ -239,18 +250,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "progress_hooks": [progress_hook],
     }
 
-    # अगर संबंधित प्लेटफ़ॉर्म की कुकी मौजूद है, तो उसे विकल्प में जोड़ें
     if cookie_file:
         ydl_opts["cookiefile"] = cookie_file
 
+    file_path = None
     try:
-        def fetch_media():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(text, download=True)
-                filename = ydl.prepare_filename(info)
-                return filename, info
+        file_path, info = await asyncio.to_thread(sync_download, text, ydl_opts)
 
-        file_path, info = await loop.run_in_executor(None, fetch_media)
+        if not os.path.exists(file_path):
+            base_without_ext = os.path.splitext(file_path)[0]
+            matched = [f for f in os.listdir(".") if f.startswith(os.path.basename(base_without_ext))]
+            if matched:
+                file_path = matched[0]
+
+        file_size = os.path.getsize(file_path)
+        if file_size > MAX_FILE_SIZE:
+            await status_msg.edit_text(get_text(user_id, "file_too_large"))
+            return
 
         await status_msg.edit_text(get_text(user_id, "uploading"))
 
@@ -259,23 +275,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if ext in ["jpg", "jpeg", "png", "webp"]:
                 await update.message.reply_photo(photo=media_file)
             elif ext in ["mp4", "mkv", "webm", "mov"]:
-                await update.message.reply_video(video=media_file)
+                await update.message.reply_video(video=media_file, supports_streaming=True)
             else:
                 await update.message.reply_document(document=media_file)
 
         await status_msg.delete()
-        if os.path.exists(file_path):
-            os.remove(file_path)
 
     except Exception as e:
         error_msg = clean_ansi(str(e))
-        await status_msg.edit_text(get_text(user_id, "failed").format(error_msg))
+        try:
+            await status_msg.edit_text(get_text(user_id, "failed").format(error_msg))
+        except TelegramError:
+            pass
+
+    finally:
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
 
 if __name__ == "__main__":
     if not os.path.exists(COOKIES_DIR):
         os.makedirs(COOKIES_DIR)
 
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = (
+        ApplicationBuilder()
+        .token(TOKEN)
+        .concurrent_updates(True)
+        .build()
+    )
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("broadcast", broadcast))
@@ -283,4 +313,4 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
     print("Bot is running...")
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
