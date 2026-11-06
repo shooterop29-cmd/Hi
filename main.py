@@ -14,8 +14,7 @@ from telegram.ext import (
 )
 import yt_dlp
 
-# Replace with your actual token or set BOT_TOKEN in Railway's Variables tab
-TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+TOKEN = "7783693610:AAGi_vnGXIotfJf3bOU7VUGN7bBLRHGeCtQ"
 ADMIN_ID = 5436530930
 
 users = {}
@@ -55,8 +54,8 @@ TEXTS = {
         "welcome": "👋 MultiSaver Pro Bot میں خوش آمدید!\n\nبراہ کرم اپنی زبان منتخب کریں:",
         "lang_set": "✅ زبان اردو منتخب ہو گئی ہے۔ ڈاؤنلوڈ کرنے کے لیے کوئی بھی لنک بھیجیں۔",
         "invalid": "⚠️ برائے مہربانی درست لنک فراہم کریں۔",
-        "init": "⚡ ڈاؤنلوڈ شروع ہو رہا ہے۔۔۔",
-        "uploading": "📤 میڈیا اپلوڈ ہو رہا ہے۔۔۔",
+        "init": "⚡ ڈاؤنلوڈ शुरू ہو रहा ہے۔۔۔",
+        "uploading": "📤 میڈیا اپلوڈ ہو रहा ہے۔۔۔",
         "failed": "❌ ڈاؤنلوڈ ناکام: {}",
     },
     "ar": {
@@ -85,13 +84,16 @@ TEXTS = {
     },
 }
 
+
 def clean_ansi(text: str) -> str:
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     return ansi_escape.sub("", text)
 
+
 def get_text(user_id: int, key: str) -> str:
     lang = users.get(user_id, "en")
     return TEXTS.get(lang, TEXTS["en"]).get(key, TEXTS["en"][key])
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -113,7 +115,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(get_text(user_id, "welcome"), reply_markup=reply_markup)
+    await update.message.reply_text(
+        get_text(user_id, "welcome"), reply_markup=reply_markup
+    )
+
 
 async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -123,6 +128,7 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     users[user_id] = lang_code
     await query.edit_message_text(get_text(user_id, "lang_set"))
 
+
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
@@ -131,12 +137,15 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
     )
 
+
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
     message_text = " ".join(context.args)
     if not message_text:
-        await update.message.reply_text("Usage: `/broadcast Your message here`", parse_mode="Markdown")
+        await update.message.reply_text(
+            "Usage: `/broadcast Your message here`", parse_mode="Markdown"
+        )
         return
     sent_count = 0
     for uid in list(users.keys()):
@@ -146,6 +155,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             pass
     await update.message.reply_text(f"✅ Broadcast sent to {sent_count} users.")
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
@@ -173,7 +183,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 percent = clean_ansi(d.get("_percent_str", "0%")).strip()
                 speed = clean_ansi(d.get("_speed_str", "N/A")).strip()
                 eta = clean_ansi(d.get("_eta_str", "N/A")).strip()
-                total = clean_ansi(d.get("_total_bytes_str", d.get("_total_bytes_estimate_str", ""))).strip()
+                total = clean_ansi(
+                    d.get(
+                        "_total_bytes_str", d.get("_total_bytes_estimate_str", "")
+                    )
+                ).strip()
 
                 msg = f"⏳ **Downloading:** `{percent}`\n⚡ **Speed:** `{speed}`\n⏱️ **ETA:** `{eta}`"
                 if total:
@@ -188,7 +202,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     output_template = f"download_{user_id}_%(id)s.%(ext)s"
     ydl_opts = {
-        # Tries best video+audio merge first (if FFmpeg is present), falls back to standalone best stream or images
         "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "outtmpl": output_template,
         "quiet": True,
@@ -207,6 +220,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     file_path = None
     try:
+
         def fetch_media():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(text, download=True)
@@ -232,7 +246,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if ext in ["jpg", "jpeg", "png", "webp"]:
                 await update.message.reply_photo(photo=media_file)
             elif ext in ["mp4", "mkv", "webm", "mov"]:
-                await update.message.reply_video(video=media_file, supports_streaming=True)
+                await update.message.reply_video(
+                    video=media_file, supports_streaming=True
+                )
             else:
                 await update.message.reply_document(document=media_file)
 
@@ -249,13 +265,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except OSError:
                 pass
 
+
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("broadcast", broadcast))
     app.add_handler(CallbackQueryHandler(language_callback, pattern="^lang_"))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+    app.add_handler(
+        MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
+    )
 
     print("Bot is running...")
     app.run_polling()
