@@ -1,2 +1,2 @@
-yt-dlp
-python-telegram-bot
+python-telegram-bot>=21.0
+git+https://github.com/yt-dlp/yt-dlp.git
