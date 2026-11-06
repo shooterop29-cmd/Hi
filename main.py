@@ -1,45 +1,39 @@
-import asyncio
-import logging
 import os
 import re
-import tempfile
 import time
-from pathlib import Path
+import asyncio
+import logging
 from urllib.parse import urlparse
-
-from telegram import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    InputMediaPhoto,
-    InputMediaVideo,
-    Update,
-)
-from telegram.error import TelegramError
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
-    CallbackQueryHandler,
-    CommandHandler,
     ContextTypes,
+    CommandHandler,
+    CallbackQueryHandler,
     MessageHandler,
     filters,
 )
 import yt_dlp
 
+TOKEN = "7783693610:AAGi_vnGXIotfJf3bOU7VUGN7bBLRHGeCtQ"
+ADMIN_ID = 5436530930
 
-# Set BOT_TOKEN in Railway -> Variables. Never put the real token in source code.
-TOKEN = os.getenv("BOT_TOKEN", "").strip()
-ADMIN_ID = int(os.getenv("ADMIN_ID", "5436530930"))
-MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "49"))
+# कुकी फाइल्स की डायरेक्टरी और मैपिंग
+COOKIES_DIR = "cookies"
+COOKIE_MAP = {
+    "youtube": os.path.join(COOKIES_DIR, "youtube.txt"),
+    "instagram": os.path.join(COOKIES_DIR, "instagram.txt"),
+    "twitter": os.path.join(COOKIES_DIR, "twitter.txt"),      # X और Twitter दोनों के लिए
+    "pinterest": os.path.join(COOKIES_DIR, "pinterest.txt"),
+    "facebook": os.path.join(COOKIES_DIR, "facebook.txt"),    # Optional (अगर कभी मिले तो)
+}
+
+users = {}
 
 logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
 )
-logger = logging.getLogger(__name__)
-
-# In-memory language preferences reset when the process restarts.
-# Use a database if you need persistent users/statistics.
-users: dict[int, str] = {}
 
 LANGUAGES = {
     "en": "🇬🇧 English",
@@ -53,120 +47,92 @@ LANGUAGES = {
 TEXTS = {
     "en": {
         "welcome": "👋 Welcome to MultiSaver Pro Bot!\n\nPlease select your language:",
-        "lang_set": "✅ Language set to English. Send a supported media link.",
-        "invalid": "⚠️ Please send a valid http:// or https:// link.",
-        "init": "⚡ Checking link and starting download...",
-        "uploading": "📤 Uploading media to Telegram...",
-        "failed": "❌ Download failed:\n{}",
-        "too_large": "⚠️ This file is {:.1f} MB. The configured upload limit is {} MB.",
+        "lang_set": "✅ Language set to English. Send any supported link (YouTube, Instagram, Facebook, X, Pinterest) to download.",
+        "invalid": "⚠️ Please provide a valid URL link.",
+        "init": "⚡ Initializing download...",
+        "uploading": "📤 Uploading media...",
+        "failed": "❌ Download failed: {}",
     },
     "hi": {
         "welcome": "👋 MultiSaver Pro Bot में आपका स्वागत है!\n\nकृपया अपनी भाषा चुनें:",
-        "lang_set": "✅ भाषा हिंदी सेट हो गई है। डाउनलोड करने के लिए लिंक भेजें।",
-        "invalid": "⚠️ कृपया http:// या https:// वाला सही लिंक भेजें।",
-        "init": "⚡ लिंक जाँचा जा रहा है और डाउनलोड शुरू हो रहा है...",
-        "uploading": "📤 मीडिया Telegram पर अपलोड हो रहा है...",
-        "failed": "❌ डाउनलोड विफल:\n{}",
-        "too_large": "⚠️ फ़ाइल {:.1f} MB की है। अपलोड सीमा {} MB है।",
+        "lang_set": "✅ भाषा हिंदी सेट हो गई है। डाउनलोड करने के लिए कोई भी लिंक (YouTube, Instagram, Facebook, X, Pinterest आदि) भेजें।",
+        "invalid": "⚠️ कृपया एक वैध URL लिंक भेजें।",
+        "init": "⚡ डाउनलोड शुरू हो रहा है...",
+        "uploading": "📤 मीडिया अपलोड हो रहा है...",
+        "failed": "❌ डाउनलोड विफल: {}",
     },
     "ur": {
         "welcome": "👋 MultiSaver Pro Bot میں خوش آمدید!\n\nبراہ کرم اپنی زبان منتخب کریں:",
-        "lang_set": "✅ زبان اردو منتخب ہو گئی ہے۔ ڈاؤنلوڈ کے لیے لنک بھیجیں۔",
-        "invalid": "⚠️ براہ کرم درست http:// یا https:// لنک بھیجیں۔",
-        "init": "⚡ لنک چیک ہو رہا ہے اور ڈاؤنلوڈ شروع ہو رہا ہے...",
-        "uploading": "📤 میڈیا Telegram پر اپلوڈ ہو رہا ہے...",
-        "failed": "❌ ڈاؤنلوڈ ناکام:\n{}",
-        "too_large": "⚠️ فائل {:.1f} MB ہے۔ اپلوڈ حد {} MB ہے۔",
+        "lang_set": "✅ زبان اردو منتخب ہو گئی ہے۔ ڈاؤنلوڈ کرنے کے لیے کوئی بھی لنک بھیجیں۔",
+        "invalid": "⚠️ برائے مہربانی درست لنک فراہم کریں۔",
+        "init": "⚡ ڈاؤنلوڈ شروع ہو رہا ہے۔۔۔",
+        "uploading": "📤 میڈیا اپلوڈ ہو रहा ہے۔۔۔",
+        "failed": "❌ ڈاؤنلوڈ ناکام: {}",
     },
     "ar": {
         "welcome": "👋 مرحبًا بك في MultiSaver Pro Bot!\n\nيرجى اختيار لغتك:",
-        "lang_set": "✅ تم ضبط اللغة على العربية. أرسل رابطًا مدعومًا.",
-        "invalid": "⚠️ يرجى إرسال رابط http:// أو https:// صالح.",
-        "init": "⚡ جارٍ فحص الرابط وبدء التنزيل...",
-        "uploading": "📤 جارٍ رفع الوسائط إلى Telegram...",
-        "failed": "❌ فشل التنزيل:\n{}",
-        "too_large": "⚠️ حجم الملف {:.1f} MB، وحد الرفع {} MB.",
+        "lang_set": "✅ تم ضبط اللغة على العربية. أرسل أي رابط للتنزيل.",
+        "invalid": "⚠️ يرجى إرسال رابط صالح.",
+        "init": "⚡ جاري بدء التنزيل...",
+        "uploading": "📤 جاري رفع الوسائط...",
+        "failed": "❌ فشل التنزيل: {}",
     },
     "es": {
-        "welcome": "👋 ¡Bienvenido a MultiSaver Pro Bot!\n\nSelecciona tu idioma:",
-        "lang_set": "✅ Idioma configurado en Español. Envía un enlace compatible.",
-        "invalid": "⚠️ Envía un enlace http:// o https:// válido.",
-        "init": "⚡ Comprobando el enlace e iniciando la descarga...",
-        "uploading": "📤 Subiendo el archivo a Telegram...",
-        "failed": "❌ Descarga fallida:\n{}",
-        "too_large": "⚠️ El archivo pesa {:.1f} MB. El límite es {} MB.",
+        "welcome": "👋 ¡Bienvenido a MultiSaver Pro Bot!\n\nPor favor seleccione su idioma:",
+        "lang_set": "✅ Idioma configurado en Español. Envía cualquier enlace para descargar.",
+        "invalid": "⚠️ Por favor, introduce un enlace válido.",
+        "init": "⚡ Iniciando descarga...",
+        "uploading": "📤 Subiendo archivo multimedia...",
+        "failed": "❌ Descarga fallida: {}",
     },
     "ru": {
-        "welcome": "👋 Добро пожаловать в MultiSaver Pro Bot!\n\nВыберите язык:",
-        "lang_set": "✅ Язык установлен на Русский. Отправьте поддерживаемую ссылку.",
-        "invalid": "⚠️ Отправьте корректную ссылку http:// или https://.",
-        "init": "⚡ Проверяю ссылку и начинаю загрузку...",
-        "uploading": "📤 Загружаю файл в Telegram...",
-        "failed": "❌ Ошибка загрузки:\n{}",
-        "too_large": "⚠️ Размер файла {:.1f} MB. Лимит — {} MB.",
+        "welcome": "👋 Добро пожаловать в MultiSaver Pro Bot!\n\nПожалуйста, выберите язык:",
+        "lang_set": "✅ Язык установлен на Русский. Отправьте ссылку для скачивания.",
+        "invalid": "⚠️ Пожалуйста, укажите рабочую ссылку.",
+        "init": "⚡ Запуск загрузки...",
+        "uploading": "📤 Отправка медиа...",
+        "failed": "❌ Ошибка загрузки: {}",
     },
 }
 
+def clean_ansi(text):
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
-def get_text(user_id: int, key: str) -> str:
-    language = users.get(user_id, "en")
-    return TEXTS.get(language, TEXTS["en"]).get(key, TEXTS["en"][key])
+def get_text(user_id, key):
+    lang = users.get(user_id, "en")
+    return TEXTS.get(lang, TEXTS["en"]).get(key, TEXTS["en"][key])
 
+def get_cookie_for_url(url: str):
+    """
+    URL के डोमेन के आधार पर सही कुकी फ़ाइल रिटर्न करता है।
+    अगर Facebook है या कुकी फ़ाइल मौजूद नहीं है, तो None रिटर्न करता है।
+    """
+    domain = urlparse(url).netloc.lower()
 
-def is_valid_http_url(value: str) -> bool:
-    try:
-        parsed = urlparse(value.strip())
-        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
-    except ValueError:
-        return False
+    target_key = None
+    if "youtube.com" in domain or "youtu.be" in domain:
+        target_key = "youtube"
+    elif "instagram.com" in domain:
+        target_key = "instagram"
+    elif "twitter.com" in domain or "x.com" in domain:
+        target_key = "twitter"
+    elif "pinterest.com" in domain or "pin.it" in domain:
+        target_key = "pinterest"
+    elif "facebook.com" in domain or "fb.watch" in domain:
+        target_key = "facebook"
 
+    if target_key and target_key in COOKIE_MAP:
+        cookie_path = COOKIE_MAP[target_key]
+        if os.path.exists(cookie_path):
+            return cookie_path
 
-def build_ydl_options(output_dir: str, url: str, progress_hook):
-    # Instagram post URLs can contain carousels. Other URLs are kept single-item.
-    host = (urlparse(url).hostname or "").lower()
-    is_instagram_post = (
-        host.endswith("instagram.com")
-        and re.search(r"/(p|reel|reels|tv)/", urlparse(url).path) is not None
-    )
-
-    options = {
-        # With FFmpeg installed, yt-dlp can merge separate video/audio streams.
-        # The final /best fallback also supports sites offering one combined stream.
-        "format": "bv*+ba/b",
-        "merge_output_format": "mp4",
-        "outtmpl": str(Path(output_dir) / "%(title).80s-%(id)s.%(ext)s"),
-        "noplaylist": not is_instagram_post,
-        "quiet": True,
-        "no_warnings": True,
-        "ignoreerrors": False,
-        "retries": 3,
-        "fragment_retries": 3,
-        "socket_timeout": 30,
-        "progress_hooks": [progress_hook],
-        "http_headers": {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            ),
-            "Accept-Language": "en-US,en;q=0.9",
-        },
-    }
-
-    # Optional: paste Netscape-format Instagram cookies into Railway variable
-    # INSTAGRAM_COOKIES if the post requires a logged-in account.
-    cookie_text = os.getenv("INSTAGRAM_COOKIES", "").strip()
-    if cookie_text and host.endswith("instagram.com"):
-        cookie_path = Path(tempfile.gettempdir()) / "instagram_cookies.txt"
-        cookie_path.write_text(cookie_text, encoding="utf-8")
-        options["cookiefile"] = str(cookie_path)
-
-    return options
-
+    return None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    users.setdefault(user_id, "en")
+    if user_id not in users:
+        users[user_id] = "en"
 
     keyboard = [
         [
@@ -182,208 +148,139 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton(LANGUAGES["ru"], callback_data="lang_ru"),
         ],
     ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        get_text(user_id, "welcome"),
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        get_text(user_id, "welcome"), reply_markup=reply_markup
     )
-
 
 async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    lang_code = query.data.removeprefix("lang_")
-    if lang_code not in TEXTS:
-        return
-    users[query.from_user.id] = lang_code
-    await query.edit_message_text(get_text(query.from_user.id, "lang_set"))
-
+    lang_code = query.data.replace("lang_", "")
+    user_id = query.from_user.id
+    users[user_id] = lang_code
+    await query.edit_message_text(get_text(user_id, "lang_set"))
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
     await update.message.reply_text(
-        f"📊 Bot statistics\nUsers seen by this running process: {len(users)}"
+        f"📊 **Bot Statistics:**\nTotal active users: {len(users)}",
+        parse_mode="Markdown",
     )
-
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
-
-    message_text = " ".join(context.args).strip()
+    message_text = " ".join(context.args)
     if not message_text:
-        await update.message.reply_text("Usage: /broadcast Your message here")
+        await update.message.reply_text("Usage: `/broadcast Your message here`", parse_mode="Markdown")
         return
-
     sent_count = 0
-    for user_id in list(users):
+    for uid in list(users.keys()):
         try:
-            await context.bot.send_message(chat_id=user_id, text=message_text)
+            await context.bot.send_message(chat_id=uid, text=message_text)
             sent_count += 1
-            await asyncio.sleep(0.05)
-        except TelegramError:
-            logger.exception("Broadcast failed for user %s", user_id)
-
+        except Exception:
+            pass
     await update.message.reply_text(f"✅ Broadcast sent to {sent_count} users.")
 
-
-def download_files(url: str, output_dir: str, loop, status_msg):
-    progress_state = {"last_update": 0.0, "last_text": ""}
-
-    def progress_hook(data):
-        if data.get("status") != "downloading":
-            return
-
-        now = time.monotonic()
-        if now - progress_state["last_update"] < 2:
-            return
-
-        percent = clean_ansi(data.get("_percent_str", "")).strip() or "..."
-        speed = clean_ansi(data.get("_speed_str", "")).strip() or "N/A"
-        eta = clean_ansi(data.get("_eta_str", "")).strip() or "N/A"
-        message = f"⏳ Downloading: {percent}\n⚡ Speed: {speed}\n⏱️ ETA: {eta}"
-
-        if message != progress_state["last_text"]:
-            progress_state["last_text"] = message
-            progress_state["last_update"] = now
-            future = asyncio.run_coroutine_threadsafe(
-                status_msg.edit_text(message), loop
-            )
-            # Consume callback exceptions so a deleted status message doesn't
-            # produce an unhandled-future warning in the worker thread.
-            future.add_done_callback(lambda f: f.exception() if not f.cancelled() else None)
-
-    options = build_ydl_options(output_dir, url, progress_hook)
-    with yt_dlp.YoutubeDL(options) as ydl:
-        ydl.extract_info(url, download=True)
-
-    # Use the actual files on disk: prepare_filename() can point to the
-    # pre-merge extension even after FFmpeg has converted/merged the output.
-    return sorted(
-        path for path in Path(output_dir).iterdir()
-        if path.is_file() and not path.name.endswith((".part", ".ytdl"))
-    )
-
-
-def clean_ansi(value: str) -> str:
-    return re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", str(value))
-
-
-async def send_downloaded_file(update: Update, file_path: Path):
-    size_mb = file_path.stat().st_size / (1024 * 1024)
-    if size_mb > MAX_UPLOAD_MB:
-        await update.message.reply_text(
-            get_text(update.effective_user.id, "too_large").format(
-                size_mb, MAX_UPLOAD_MB
-            )
-        )
-        return
-
-    suffix = file_path.suffix.lower()
-    with file_path.open("rb") as media:
-        if suffix in {".jpg", ".jpeg", ".png"}:
-            await update.message.reply_photo(photo=media)
-        elif suffix in {".mp4", ".mov"}:
-            await update.message.reply_video(video=media, supports_streaming=True)
-        elif suffix == ".webp":
-            await update.message.reply_document(document=media)
-        else:
-            await update.message.reply_document(document=media)
-
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
-        return
-
-    url = update.message.text.strip()
+    text = update.message.text.strip()
     user_id = update.effective_user.id
-    users.setdefault(user_id, "en")
+    if user_id not in users:
+        users[user_id] = "en"
 
-    if not is_valid_http_url(url):
+    if not ("http://" in text or "https://" in text):
         await update.message.reply_text(get_text(user_id, "invalid"))
         return
 
     try:
         await update.message.set_reaction(reaction="⚡")
-    except TelegramError:
+    except Exception:
         pass
 
     status_msg = await update.message.reply_text(get_text(user_id, "init"))
+
     loop = asyncio.get_running_loop()
+    progress_state = {"last_time": 0.0, "last_text": ""}
+
+    def progress_hook(d):
+        if d.get("status") == "downloading":
+            now = time.time()
+            if now - progress_state["last_time"] >= 2.0:
+                percent = clean_ansi(d.get("_percent_str", "0%")).strip()
+                speed = clean_ansi(d.get("_speed_str", "N/A")).strip()
+                eta = clean_ansi(d.get("_eta_str", "N/A")).strip()
+                total = clean_ansi(d.get("_total_bytes_str", d.get("_total_bytes_estimate_str", ""))).strip()
+
+                msg = f"⏳ **Downloading:** `{percent}`\n⚡ **Speed:** `{speed}`\n⏱️ **ETA:** `{eta}`"
+                if total:
+                    msg += f"\n📦 **Size:** `{total}`"
+
+                if msg != progress_state["last_text"]:
+                    progress_state["last_text"] = msg
+                    progress_state["last_time"] = now
+                    asyncio.run_coroutine_threadsafe(
+                        status_msg.edit_text(msg, parse_mode="Markdown"), loop
+                    )
+
+    output_template = f"download_{user_id}_%(id)s.%(ext)s"
+    
+    # URL के हिसाब से कुकी ढूँढें
+    cookie_file = get_cookie_for_url(text)
+
+    ydl_opts = {
+        "format": "bestvideo+bestaudio/best",
+        "outtmpl": output_template,
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "progress_hooks": [progress_hook],
+    }
+
+    # अगर संबंधित प्लेटफ़ॉर्म की कुकी मौजूद है, तो उसे विकल्प में जोड़ें
+    if cookie_file:
+        ydl_opts["cookiefile"] = cookie_file
 
     try:
-        with tempfile.TemporaryDirectory(prefix="multisaver_") as temp_dir:
-            files = await asyncio.to_thread(
-                download_files, url, temp_dir, loop, status_msg
-            )
+        def fetch_media():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(text, download=True)
+                filename = ydl.prepare_filename(info)
+                return filename, info
 
-            if not files:
-                raise RuntimeError(
-                    "The site did not provide a downloadable media file."
-                )
+        file_path, info = await loop.run_in_executor(None, fetch_media)
 
-            await status_msg.edit_text(get_text(user_id, "uploading"))
+        await status_msg.edit_text(get_text(user_id, "uploading"))
 
-            sent = 0
-            for file_path in files:
-                size_mb = file_path.stat().st_size / (1024 * 1024)
-                if size_mb > MAX_UPLOAD_MB:
-                    await update.message.reply_text(
-                        get_text(user_id, "too_large").format(
-                            size_mb, MAX_UPLOAD_MB
-                        )
-                    )
-                    continue
-
-                await send_downloaded_file(update, file_path)
-                sent += 1
-
-            if sent == 0:
-                await status_msg.edit_text(
-                    "⚠️ No files could be uploaded. They may exceed Telegram's upload limit."
-                )
+        ext = file_path.split(".")[-1].lower()
+        with open(file_path, "rb") as media_file:
+            if ext in ["jpg", "jpeg", "png", "webp"]:
+                await update.message.reply_photo(photo=media_file)
+            elif ext in ["mp4", "mkv", "webm", "mov"]:
+                await update.message.reply_video(video=media_file)
             else:
-                await status_msg.delete()
+                await update.message.reply_document(document=media_file)
 
-    except Exception as exc:
-        error_text = clean_ansi(str(exc))
-        logger.exception("Download failed for user %s", user_id)
-        # Telegram messages have a 4096-character limit.
-        await status_msg.edit_text(
-            get_text(user_id, "failed").format(error_text[:3500])
-        )
+        await status_msg.delete()
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
+    except Exception as e:
+        error_msg = clean_ansi(str(e))
+        await status_msg.edit_text(get_text(user_id, "failed").format(error_msg))
 
-async def post_init(application):
-    # Helpful startup log; does not expose the token.
-    me = await application.bot.get_me()
-    logger.info("Bot started as @%s", me.username)
+if __name__ == "__main__":
+    if not os.path.exists(COOKIES_DIR):
+        os.makedirs(COOKIES_DIR)
 
-
-def main():
-    if not TOKEN or TOKEN == "YOUR_BOT_TOKEN_HERE":
-        raise RuntimeError(
-            "BOT_TOKEN is missing. Add the valid token in Railway -> Variables."
-        )
-
-    app = (
-        ApplicationBuilder()
-        .token(TOKEN)
-        .post_init(post_init)
-        .build()
-    )
-
+    app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("broadcast", broadcast))
-    app.add_handler(CallbackQueryHandler(language_callback, pattern=r"^lang_"))
-    app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-    )
+    app.add_handler(CallbackQueryHandler(language_callback, pattern="^lang_"))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    logger.info("Starting polling...")
-    app.run_polling(drop_pending_updates=True)
-
-
-if __name__ == "__main__":
-    main()
+    print("Bot is running...")
+    app.run_polling()
