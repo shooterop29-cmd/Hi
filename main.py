@@ -1,10 +1,19 @@
 import os
 import re
 import time
+import glob
 import asyncio
 import logging
-from urllib.parse import urlparse
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import subprocess
+from urllib.parse import urlparse, urlunparse
+
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputMediaPhoto,
+    InputMediaVideo,
+)
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
@@ -21,6 +30,8 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", 5436530930))
 MAX_FILE_SIZE = 49 * 1024 * 1024  # 49 MB limit for non-premium bots
 
 COOKIES_DIR = "cookies"
+DOWNLOADS_DIR = "downloads"
+
 COOKIE_MAP = {
     "youtube": os.path.join(COOKIES_DIR, "youtube.txt"),
     "instagram": os.path.join(COOKIES_DIR, "instagram.txt"),
@@ -110,6 +121,22 @@ def get_text(user_id: int, key: str) -> str:
     lang = users.get(user_id, "en")
     return TEXTS.get(lang, TEXTS["en"]).get(key, TEXTS["en"][key])
 
+def extract_clean_url(text: str) -> str | None:
+    """मैसेज से साफ़ URL निकालता है और फालतू ट्रैकिंग पैरामीटर्स हटाता है"""
+    url_pattern = r"(https?://[^\s]+)"
+    match = re.search(url_pattern, text)
+    if not match:
+        return None
+
+    raw_url = match.group(1).strip()
+    raw_url = re.sub(r"[),.\'\"]+$", "", raw_url)
+
+    parsed = urlparse(raw_url)
+    if "pin.it" in parsed.netloc:
+        return raw_url.split("?")[0]
+
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
+
 def get_cookie_for_url(url: str):
     domain = urlparse(url).netloc.lower()
     target_key = None
@@ -129,6 +156,65 @@ def get_cookie_for_url(url: str):
         if os.path.exists(cookie_path):
             return cookie_path
     return None
+
+def download_with_gallery_dl(url: str, dest_dir: str, cookie_file: str = None) -> list[str]:
+    """gallery-dl के ज़रिए फ़ोटोज़/कैरोसेल डाउनलोड करता है"""
+    cmd = ["gallery-dl", "--directory", dest_dir]
+    if cookie_file and os.path.exists(cookie_file):
+        cmd.extend(["--cookies", cookie_file])
+    cmd.append(url)
+
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if res.returncode == 0:
+            downloaded = []
+            for root, _, files in os.walk(dest_dir):
+                for f in files:
+                    downloaded.append(os.path.join(root, f))
+            return downloaded
+    except Exception:
+        pass
+    return []
+
+def download_with_ytdlp(url: str, dest_dir: str, cookie_file: str = None, progress_hook=None) -> list[str]:
+    """yt-dlp के ज़रिए वीडियो/ऑडियो डाउनलोड करता है"""
+    output_template = os.path.join(dest_dir, "%(id)s.%(ext)s")
+    ydl_opts = {
+        "format": "bestvideo[filesize<49M]+bestaudio/best[filesize<49M]/best",
+        "outtmpl": output_template,
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+    }
+    if progress_hook:
+        ydl_opts["progress_hooks"] = [progress_hook]
+    if cookie_file and os.path.exists(cookie_file):
+        ydl_opts["cookiefile"] = cookie_file
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.extract_info(url, download=True)
+
+    downloaded = []
+    for root, _, files in os.walk(dest_dir):
+        for f in files:
+            downloaded.append(os.path.join(root, f))
+    return downloaded
+
+def route_and_download(url: str, dest_dir: str, progress_hook=None) -> list[str]:
+    """प्लेटफॉर्म के हिसाब से gallery-dl या yt-dlp का चुनाव करता है"""
+    domain = urlparse(url).netloc.lower()
+    cookie_file = get_cookie_for_url(url)
+
+    # 1. Instagram / Pinterest / X (Twitter) - पहले फ़ोटोज़/इमेज के लिए gallery-dl
+    if any(p in domain for p in ["instagram.com", "pinterest.com", "pin.it", "twitter.com", "x.com"]):
+        files = download_with_gallery_dl(url, dest_dir, cookie_file)
+        if files:
+            return files
+        # अगर gallery-dl से कोई फ़ाइल नहीं मिली, तो yt-dlp फ़ॉलबैक (वीडियो/रील्स)
+        return download_with_ytdlp(url, dest_dir, cookie_file, progress_hook)
+
+    # 2. YouTube या अन्य प्लेटफ़ॉर्म्स - yt-dlp
+    return download_with_ytdlp(url, dest_dir, cookie_file, progress_hook)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -187,19 +273,14 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
     await update.message.reply_text(f"✅ Broadcast sent to {sent_count} users.")
 
-def sync_download(url: str, ydl_opts: dict):
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
-        return filename, info
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
+    raw_text = update.message.text.strip()
     user_id = update.effective_user.id
     if user_id not in users:
         users[user_id] = "en"
 
-    if not ("http://" in text or "https://" in text):
+    clean_url = extract_clean_url(raw_text)
+    if not clean_url:
         await update.message.reply_text(get_text(user_id, "invalid"))
         return
 
@@ -238,46 +319,55 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                     asyncio.run_coroutine_threadsafe(safe_edit(), loop)
 
-    output_template = f"download_{user_id}_{int(time.time())}_%(id)s.%(ext)s"
-    cookie_file = get_cookie_for_url(text)
+    task_dir = os.path.join(DOWNLOADS_DIR, f"{user_id}_{int(time.time())}")
+    os.makedirs(task_dir, exist_ok=True)
 
-    ydl_opts = {
-        "format": "bestvideo[filesize<49M]+bestaudio/best[filesize<49M]/best",
-        "outtmpl": output_template,
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
-        "progress_hooks": [progress_hook],
-    }
-
-    if cookie_file:
-        ydl_opts["cookiefile"] = cookie_file
-
-    file_path = None
+    downloaded_files = []
     try:
-        file_path, info = await asyncio.to_thread(sync_download, text, ydl_opts)
+        downloaded_files = await asyncio.to_thread(
+            route_and_download, clean_url, task_dir, progress_hook
+        )
 
-        if not os.path.exists(file_path):
-            base_without_ext = os.path.splitext(file_path)[0]
-            matched = [f for f in os.listdir(".") if f.startswith(os.path.basename(base_without_ext))]
-            if matched:
-                file_path = matched[0]
+        if not downloaded_files:
+            raise Exception("No media found or download failed.")
 
-        file_size = os.path.getsize(file_path)
-        if file_size > MAX_FILE_SIZE:
+        # साइज चेक
+        valid_files = [f for f in downloaded_files if os.path.getsize(f) <= MAX_FILE_SIZE]
+        if not valid_files:
             await status_msg.edit_text(get_text(user_id, "file_too_large"))
             return
 
         await status_msg.edit_text(get_text(user_id, "uploading"))
 
-        ext = file_path.split(".")[-1].lower()
-        with open(file_path, "rb") as media_file:
+        # एक से ज़्यादा मीडिया (Carousels/Albums) या सिंगल मीडिया अपलोड
+        media_group = []
+        for file_path in valid_files:
+            ext = file_path.split(".")[-1].lower()
             if ext in ["jpg", "jpeg", "png", "webp"]:
-                await update.message.reply_photo(photo=media_file)
+                with open(file_path, "rb") as f:
+                    media_group.append(InputMediaPhoto(media=f.read()))
             elif ext in ["mp4", "mkv", "webm", "mov"]:
-                await update.message.reply_video(video=media_file, supports_streaming=True)
-            else:
-                await update.message.reply_document(document=media_file)
+                with open(file_path, "rb") as f:
+                    media_group.append(InputMediaVideo(media=f.read()))
+
+        if len(media_group) > 1:
+            # 10 के बैच में टेलीग्राम एल्बम भेजें
+            for i in range(0, len(media_group), 10):
+                await update.message.reply_media_group(media=media_group[i:i + 10])
+        elif len(media_group) == 1:
+            file_path = valid_files[0]
+            ext = file_path.split(".")[-1].lower()
+            with open(file_path, "rb") as media_file:
+                if ext in ["jpg", "jpeg", "png", "webp"]:
+                    await update.message.reply_photo(photo=media_file)
+                elif ext in ["mp4", "mkv", "webm", "mov"]:
+                    await update.message.reply_video(video=media_file, supports_streaming=True)
+                else:
+                    await update.message.reply_document(document=media_file)
+        else:
+            for file_path in valid_files:
+                with open(file_path, "rb") as media_file:
+                    await update.message.reply_document(document=media_file)
 
         await status_msg.delete()
 
@@ -289,15 +379,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     finally:
-        if file_path and os.path.exists(file_path):
+        # क्लीनअप
+        if os.path.exists(task_dir):
+            for f in glob.glob(os.path.join(task_dir, "*")):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
             try:
-                os.remove(file_path)
+                os.rmdir(task_dir)
             except OSError:
                 pass
 
 if __name__ == "__main__":
-    if not os.path.exists(COOKIES_DIR):
-        os.makedirs(COOKIES_DIR)
+    os.makedirs(COOKIES_DIR, exist_ok=True)
+    os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
     app = (
         ApplicationBuilder()
